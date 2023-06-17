@@ -4,7 +4,7 @@ using namespace vex;
 
 // A global instance of brain used for printing to the V5 brain screen
 brain Brain;
-
+controller gameController = controller(primary);
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
  *
