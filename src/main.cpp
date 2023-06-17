@@ -40,10 +40,6 @@ void pre_auton(void) {
   // Example: clearing encoders, setting servo positions, ...
 }
 
-enum motors{
-  
-};
-
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
 /*                              Autonomous Task                              */
