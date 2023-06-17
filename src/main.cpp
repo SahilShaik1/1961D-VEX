@@ -10,21 +10,12 @@
 // ---- START VEXCODE CONFIGURED DEVICES ----
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
-// Controller1          controller                    
-// frontleft            motor         18              
-// frontRight           motor         15              
-// backLeft             motor         17              
-// backRight            motor         11              
-// DigitalOutA          digital_out   A               
-// Intake               motor         9               
-// Motor16              motor         16              
-// Motor19              motor         19              
-// Motor10              motor         10              
-// DigitalOutB          digital_out   B               
+// Controller1          controller                             
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
 #include "robot-config.h"
+
 using namespace vex;
 
 // A global instance of competition
@@ -48,6 +39,10 @@ void pre_auton(void) {
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
+
+enum motors{
+  
+};
 
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
@@ -82,40 +77,44 @@ void autonomous(void) {
 //Set to 2 decimal places
 template <typename T> T round(T var){
   float value = (int)(var * 100 + .5);
-  return (T)value / 100;
+  return (T)(value / 100);
 }
 
 
-
+struct status{
+  //Incase malloc doesn't work
+  uint32_t battery;
+  double temp;
+  status(uint32_t battery, double temp){
+    this->battery = battery;
+    this->temp = temp;
+  }
+};
 
 void usercontrol(void) {
   // User control code here, inside the loop
-  controller gameController;
-  vex::brain brain;
-
   //prints battery and temp to screen
-  //Uses Dynamically Allocated Memory to return arrays(frees at end)
+  //Uses Dynamically Allocated Memory to return arrays(frees if called)
   auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
       mem = NULL;
-      free((void*)mem);
+      free(mem);
       return nullptr;
     }
-
+  
     //Prints battery and temp
     gameController.Screen.clearScreen();
     gameController.Screen.setCursor(0, 0);
     gameController.Screen.print("B: ");
-    uint32_t batteryPct = brain.Battery.capacity(percentUnits::pct);
+    uint32_t batteryPct = Brain.Battery.capacity(percentUnits::pct);
     gameController.Screen.print(batteryPct);
     gameController.Screen.print("%");
     gameController.Screen.setCursor(0, 1);
-    gameController.Screen.print("Current Temp: ");
-    double temp = round(brain.Battery.temperature(temperatureUnits::fahrenheit));
-
+    gameController.Screen.print("T: ");
+    double temp = round(Brain.Battery.temperature(temperatureUnits::fahrenheit));
     gameController.Screen.print(temp);
-    
+    gameController.Screen.print(" F");
 
     //stores both in array
     double res[2] = {(double)batteryPct, temp};
@@ -131,8 +130,15 @@ void usercontrol(void) {
       return addr;
     }
   };
-
+  //addr points to an array with {battery, temp(in Fareinheit)}
+  //Since the array is stored as pointers, do *addr for first element(battery) and *(addr + 1) for second element(temp)
   double* addr = printToScreen(NULL);
+  double battery = *addr;
+  double temp = *(addr + 1);
+  if(battery < .05 || temp > 60){
+    gameController.Screen.setCursor(0, 2);
+    gameController.Screen.print("Warning!");
+  }
   while (1) {
     wait(20, msec);
   }
