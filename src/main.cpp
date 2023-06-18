@@ -90,7 +90,7 @@ struct status{
 void usercontrol(void) {
   // User control code here, inside the loop
   //prints battery and temp to screen
-  //Uses Dynamically Allocated Memory to return arrays(frees if called)
+  //Uses memory to return array
   auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
@@ -115,8 +115,9 @@ void usercontrol(void) {
     //stores both in array
     double res[2] = {(double)batteryPct, temp};
     if(mem == NULL){
-      //First time run, memory allocated to allow for the arr
+      //First time run, memory allocated to the heap
       double *addr = (double*)malloc(sizeof(res));
+      //set the memory to the array
       addr = res;
       return addr;
     } else {
