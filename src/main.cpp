@@ -10,11 +10,16 @@
 // ---- START VEXCODE CONFIGURED DEVICES ----
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
-// Controller1          controller                             
+// Controller1          controller    
+// rightUP              motor         1
+// rightDN              motor         2
+// rightSN              motor         3
+// leftUP               motor         4
+// leftDN               motor         5
+// leftSN               motor         6
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
-#include "robot-config.h"
 
 using namespace vex;
 
@@ -39,6 +44,7 @@ void pre_auton(void) {
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
+
 
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
@@ -70,76 +76,73 @@ void autonomous(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-//Set to 2 decimal places
-template <typename T> T round(T var){
-  float value = (int)(var * 100 + .5);
-  return (T)(value / 100);
-}
-
-
-struct status{
-  //Incase malloc doesn't work
-  uint32_t battery;
-  double temp;
-  status(uint32_t battery, double temp){
-    this->battery = battery;
-    this->temp = temp;
-  }
-};
-
 void usercontrol(void) {
   // User control code here, inside the loop
   //prints battery and temp to screen
-  //Uses memory to return array
+  //returns ptr to array
   auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
       mem = NULL;
       free(mem);
-      return nullptr;
+      return nullptr; 
     }
-  
-    //Prints battery and temp
+    //Prints battery
     gameController.Screen.clearScreen();
     gameController.Screen.setCursor(0, 0);
     gameController.Screen.print("B: ");
-    uint32_t batteryPct = Brain.Battery.capacity(percentUnits::pct);
+    int batteryPct = Brain.Battery.capacity(percentUnits::pct);
     gameController.Screen.print(batteryPct);
     gameController.Screen.print("%");
-    gameController.Screen.setCursor(0, 1);
-    gameController.Screen.print("T: ");
-    double temp = round(Brain.Battery.temperature(temperatureUnits::fahrenheit));
-    gameController.Screen.print(temp);
-    gameController.Screen.print(" F");
-
     //stores both in array
-    double res[2] = {(double)batteryPct, temp};
+    double res[1] = {(double)batteryPct};
     if(mem == NULL){
-      //First time run, memory allocated to the heap
+      //First time run
       double *addr = (double*)malloc(sizeof(res));
       //set the memory to the array
       addr = res;
       return addr;
     } else {
-      //Already ran, now stored in original allocation of memory
+      //use old memory
       double *addr = (double*)mem;
       addr = res;
       return addr;
     }
   };
-  //addr points to an array with {battery, temp(in Fareinheit)}
-  //Since the array is stored as pointers, do *addr for first element(battery) and *(addr + 1) for second element(temp)
-  double* addr = printToScreen(NULL);
-  double battery = *addr;
-  double temp = *(addr + 1);
-  if(battery < .05 || temp > 60){
-    gameController.Screen.setCursor(0, 2);
-    gameController.Screen.print("Warning!");
-  }
+
+
   while (1) {
+    double* addr = printToScreen(NULL);
+    double battery = *addr;
+    int leftJoystickY = gameController.Axis3.position(pct);
+    int rightJoystickX = gameController.Axis1.position(pct);
+    
+    if (leftJoystickY > -5 && leftJoystickY < 5){
+      leftJoystickY = 0;
+    }
+    if (rightJoystickX > -5 && rightJoystickX < 5){
+      rightJoystickX = 0;
+    }
+    if(leftJoystickY == 0 && rightJoystickX > 0){
+      rightMotors.spin(fwd, 1, pct);
+      rightMotors.spin(fwd, -1, pct);
+    }
+    else if(leftJoystickY == 0 && rightJoystickX < 0){
+      rightMotors.spin(fwd, -1, pct);
+      rightMotors.spin(fwd, 1, pct);
+    }
+    else {
+      rightMotors.spin(fwd, leftJoystickY - rightJoystickX, pct);
+      leftMotors.spin(fwd, leftJoystickY + rightJoystickX, pct);
+    }
+
+    if(battery < 5){
+      gameController.Screen.setCursor(0, 1);
+      gameController.Screen.print("Warning!");
+    }
+
     wait(20, msec);
   }
-
 }
 
 //
@@ -154,7 +157,6 @@ int main() {
 
   // Prevent main from exiting with an infinite loop.
   while (true) {
-    
     wait(100, msec);
   }
 }
