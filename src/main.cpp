@@ -17,6 +17,7 @@
 // leftUP               motor         4
 // leftDN               motor         5
 // leftSN               motor         6
+// intake               motor         7
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -114,15 +115,25 @@ void usercontrol(void) {
   while (1) {
     double* addr = printToScreen(NULL);
     double battery = *addr;
+    //joystick
     int leftJoystickY = gameController.Axis3.position(pct);
     int rightJoystickX = gameController.Axis1.position(pct);
-    
+    //intake
+    if (gameController.ButtonR1.pressing()){
+      intake.spin(fwd, 1, pct);
+    } else if(gameController.ButtonR2.pressing()){
+      intake.spin(reverse, 1, pct);
+    }
+
+    //no input
     if (leftJoystickY > -5 && leftJoystickY < 5){
       leftJoystickY = 0;
     }
     if (rightJoystickX > -5 && rightJoystickX < 5){
       rightJoystickX = 0;
     }
+
+    //driving
     if(leftJoystickY == 0 && rightJoystickX > 0){
       rightMotors.spin(fwd, 1, pct);
       rightMotors.spin(fwd, -1, pct);
@@ -136,7 +147,7 @@ void usercontrol(void) {
       leftMotors.spin(fwd, leftJoystickY + rightJoystickX, pct);
     }
 
-    if(battery < 5){
+    if(battery < .05){
       gameController.Screen.setCursor(0, 1);
       gameController.Screen.print("Warning!");
     }
