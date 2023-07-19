@@ -5,6 +5,14 @@ using namespace vex;
 // A global instance of brain used for printing to the V5 brain screen
 brain Brain;
 controller gameController = controller(primary);
+motor rightUP = motor(PORT1, ratio18_1, false);
+motor rightDN = motor(PORT2, ratio18_1, true);
+motor rightSN = motor(PORT3, ratio18_1, false);
+motor leftUP  = motor(PORT4, ratio18_1, false);
+motor leftDN  = motor(PORT5, ratio18_1, true);
+motor leftSN = motor(PORT6, ratio18_1, false);
+motor_group rightMotors = motor_group(rightUP, rightDN, rightSN);
+motor_group leftMotors = motor_group(leftUP, leftDN, leftSN);
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
  *
