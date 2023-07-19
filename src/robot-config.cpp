@@ -11,6 +11,7 @@ motor rightSN = motor(PORT3, ratio18_1, false);
 motor leftUP  = motor(PORT4, ratio18_1, false);
 motor leftDN  = motor(PORT5, ratio18_1, true);
 motor leftSN = motor(PORT6, ratio18_1, false);
+motor intake = motor(PORT7, ratio18_1, false);
 motor_group rightMotors = motor_group(rightUP, rightDN, rightSN);
 motor_group leftMotors = motor_group(leftUP, leftDN, leftSN);
 /**
