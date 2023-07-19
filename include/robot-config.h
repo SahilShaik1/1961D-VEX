@@ -8,6 +8,7 @@ extern motor rightSN;
 extern motor leftUP;
 extern motor leftDN;
 extern motor leftSN;
+extern motor intake;
 extern motor_group rightMotors;
 extern motor_group leftMotors;
 /**
