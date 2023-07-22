@@ -18,6 +18,8 @@
 // leftDN               motor         5
 // leftSN               motor         6
 // intake               motor         7
+// coilMotor            motor         8
+// limitSwitch          limit         A
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -57,13 +59,24 @@ void pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-
-
+bool coiling = false;
+bool single = false;
 //Starting autonomous
 void autonomous(void) {
 
 }
 
+
+void coil(){
+  coiling = !coiling;
+}
+
+void shoot(){
+  //apply tension and shoot
+  coilMotor.spinFor(reverse, 100, msec);
+  coiling = true;
+  single = true;
+}
 
 
 
@@ -95,7 +108,7 @@ void usercontrol(void) {
     int batteryPct = Brain.Battery.capacity(percentUnits::pct);
     gameController.Screen.print(batteryPct);
     gameController.Screen.print("%");
-    //stores both in array
+    //stores in array
     double res[1] = {(double)batteryPct};
     if(mem == NULL){
       //First time run
@@ -111,19 +124,45 @@ void usercontrol(void) {
     }
   };
 
-
+  double* addr = printToScreen(NULL);
   while (1) {
-    double* addr = printToScreen(NULL);
+    addr = printToScreen(addr);
     double battery = *addr;
     //joystick
     int leftJoystickY = gameController.Axis3.position(pct);
     int rightJoystickX = gameController.Axis1.position(pct);
+
+    //coil controls
+    void (*b1ptr)() = &coil;
+    void (*b2ptr)() = &shoot;
+
+    gameController.ButtonL1.pressed(b1ptr);
+    gameController.ButtonL2.pressed(b2ptr);
+    
+    //single shot coiling
+    if(single && coiling){
+      //The limit switch hasn't been pressed
+      if(!limitSwitch.pressing()){
+        coilMotor.spin(reverse, 1, pct);
+      } else {
+      //limit switch reached, stop coiling
+        single = false;
+        coiling = false;
+      }
+    } 
+    //coiling toggled on
+    if(coiling && !single){
+      coilMotor.spin(reverse, 1, pct);
+    }
+
     //intake
     if (gameController.ButtonR1.pressing()){
       intake.spin(fwd, 1, pct);
     } else if(gameController.ButtonR2.pressing()){
       intake.spin(reverse, 1, pct);
     }
+
+
 
     //no input
     if (leftJoystickY > -5 && leftJoystickY < 5){
@@ -146,6 +185,7 @@ void usercontrol(void) {
       rightMotors.spin(fwd, leftJoystickY - rightJoystickX, pct);
       leftMotors.spin(fwd, leftJoystickY + rightJoystickX, pct);
     }
+
 
     if(battery < .05){
       gameController.Screen.setCursor(0, 1);
