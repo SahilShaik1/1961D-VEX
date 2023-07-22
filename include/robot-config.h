@@ -2,6 +2,7 @@ using namespace vex;
 
 extern brain Brain;
 extern controller gameController;
+extern limit limitSwitch;
 extern motor rightUP;
 extern motor rightDN;
 extern motor rightSN;
@@ -9,6 +10,7 @@ extern motor leftUP;
 extern motor leftDN;
 extern motor leftSN;
 extern motor intake;
+extern motor coilMotor;
 extern motor_group rightMotors;
 extern motor_group leftMotors;
 /**
