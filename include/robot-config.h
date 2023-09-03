@@ -1,21 +1,16 @@
 using namespace vex;
 
 extern brain Brain;
-extern controller gameController;
-extern limit limitSwitch;
-extern motor rightUP;
-extern motor rightDN;
-extern motor rightSN;
-extern motor leftUP;
-extern motor leftDN;
-extern motor leftSN;
+
+// VEXcode devices
+extern drivetrain Drivetrain;
+extern controller Controller1;
+extern motor leftMotorA;
 extern motor intake;
 extern motor coilMotor;
-extern motor_group rightMotors;
-extern motor_group leftMotors;
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
- *
+ * 
  * This should be called at the start of your int main function.
  */
-void vexcodeInit(void);
+void  vexcodeInit( void );
