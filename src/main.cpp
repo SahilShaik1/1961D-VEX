@@ -2,7 +2,7 @@
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
 /*    Author:       VEX                                                       */
-/*    Created:      Thu Jun 12 2023                                           */
+/*    Created:      Thu Sep 26 2019                                           */
 /*    Description:  Competition Template                                      */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -10,16 +10,8 @@
 // ---- START VEXCODE CONFIGURED DEVICES ----
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
-// Controller1          controller    
-// rightUP              motor         1
-// rightDN              motor         2
-// rightSN              motor         3
-// leftUP               motor         4
-// leftDN               motor         5
-// leftSN               motor         6
-// intake               motor         7
-// coilMotor            motor         8
-// limitSwitch          limit         A
+// Drivetrain           drivetrain    1, 2, 15, 16    
+// Controller1          controller                    
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -44,10 +36,10 @@ competition Competition;
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
-
 
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
@@ -68,15 +60,18 @@ void autonomous(void) {
 
 
 void coil(){
-  coiling = !coiling;
+  Controller1.rumble(".");
+  //coiling = !coiling;
 }
 
 void shoot(){
   //apply tension and shoot
-  coilMotor.spinFor(reverse, 100, msec);
+  //coilMotor.spinFor(reverse, 100, msec);
   coiling = true;
   single = true;
+  Controller1.rumble(".");
 }
+
 
 
 
@@ -92,9 +87,10 @@ void shoot(){
 
 void usercontrol(void) {
   // User control code here, inside the loop
-  //prints battery and temp to screen
-  //returns ptr to array
-  auto printToScreen = [&](void* mem, bool end = false) -> double*{
+    // This is the main execution loop for the user control program.
+    // Each time through the loop your program should update motor + servo
+    // values based on feedback from the joysticks.
+    auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
       mem = NULL;
@@ -102,14 +98,23 @@ void usercontrol(void) {
       return nullptr; 
     }
     //Prints battery
-    gameController.Screen.clearScreen();
-    gameController.Screen.setCursor(0, 0);
-    gameController.Screen.print("B: ");
+    Controller1.Screen.clearScreen();
+    Controller1.Screen.setCursor(0, 0);
+    Controller1.Screen.print("B: ");
     int batteryPct = Brain.Battery.capacity(percentUnits::pct);
-    gameController.Screen.print(batteryPct);
-    gameController.Screen.print("%");
+    Controller1.Screen.print(batteryPct);
+    Controller1.Screen.print("%");
+    double temp = leftMotorA.temperature(temperatureUnits::celsius);
+    Controller1.Screen.print(" T: ");
+    Controller1.Screen.print(temp);
+    Controller1.Screen.print("C");
     //stores in array
-    double res[1] = {(double)batteryPct};
+
+    Controller1.Screen.setCursor(2, 2);
+    Controller1.Screen.print(batteryPct);
+  
+
+    double res[2] = {(double)batteryPct, temp};
     if(mem == NULL){
       //First time run
       double *addr = (double*)malloc(sizeof(res));
@@ -125,20 +130,20 @@ void usercontrol(void) {
   };
 
   double* addr = printToScreen(NULL);
+  int counter = 0;
   while (1) {
-    addr = printToScreen(addr);
-    double battery = *addr;
-    //joystick
-    int leftJoystickY = gameController.Axis3.position(pct);
-    int rightJoystickX = gameController.Axis1.position(pct);
-
+    if(counter % 50 == 0){
+      addr = printToScreen(addr);
+    }
+    double battery = *(addr);
+    double temp = *(addr + 1);
     //coil controls
     void (*b1ptr)() = &coil;
     void (*b2ptr)() = &shoot;
 
-    gameController.ButtonL1.pressed(b1ptr);
-    gameController.ButtonL2.pressed(b2ptr);
-    
+    Controller1.ButtonL1.pressed(b1ptr);
+    Controller1.ButtonL2.pressed(b2ptr);
+/*    
     //single shot coiling
     if(single && coiling){
       //The limit switch hasn't been pressed
@@ -154,45 +159,24 @@ void usercontrol(void) {
     if(coiling && !single){
       coilMotor.spin(reverse, 1, pct);
     }
-
+*/
     //intake
-    if (gameController.ButtonR1.pressing()){
+    if (Controller1.ButtonR1.pressing()){
       intake.spin(fwd, 1, pct);
-    } else if(gameController.ButtonR2.pressing()){
+    } else if(Controller1.ButtonR2.pressing()){
       intake.spin(reverse, 1, pct);
     }
 
+    
 
+    // ........................................................................
+    // Insert user code here. This is where you use the joystick values to
+    // update your motors, etc.
+    // ........................................................................
 
-    //no input
-    if (leftJoystickY > -5 && leftJoystickY < 5){
-      leftJoystickY = 0;
-    }
-    if (rightJoystickX > -5 && rightJoystickX < 5){
-      rightJoystickX = 0;
-    }
-
-    //driving
-    if(leftJoystickY == 0 && rightJoystickX > 0){
-      rightMotors.spin(fwd, 1, pct);
-      rightMotors.spin(fwd, -1, pct);
-    }
-    else if(leftJoystickY == 0 && rightJoystickX < 0){
-      rightMotors.spin(fwd, -1, pct);
-      rightMotors.spin(fwd, 1, pct);
-    }
-    else {
-      rightMotors.spin(fwd, leftJoystickY - rightJoystickX, pct);
-      leftMotors.spin(fwd, leftJoystickY + rightJoystickX, pct);
-    }
-
-
-    if(battery < .05){
-      gameController.Screen.setCursor(0, 1);
-      gameController.Screen.print("Warning!");
-    }
-
-    wait(20, msec);
+    wait(20, msec); // Sleep the task for a short amount of time to
+                    // prevent wasted resources.
+    
   }
 }
 
@@ -203,6 +187,7 @@ int main() {
   // Set up callbacks for autonomous and driver control periods.
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
+
   // Run the pre-autonomous function.
   pre_auton();
 
