@@ -16,14 +16,12 @@ motor_group LeftDriveSmart = motor_group(leftMotorA, leftMotorB, leftMotorC);
 motor rightMotorA = motor(PORT18, ratio18_1, true);
 motor rightMotorB = motor(PORT19, ratio18_1, true);
 motor rightMotorC = motor(PORT20, ratio18_1, false);
-
 motor_group RightDriveSmart = motor_group(rightMotorA, rightMotorB, rightMotorC);
+motor intake = motor(PORT9, ratio18_1, false); 
 drivetrain Drivetrain = drivetrain(LeftDriveSmart, RightDriveSmart, 319.19, 295, 40, mm, 1);
 controller Controller1 = controller(primary);
 
 
-
-motor intake = motor(PORT1, ratio18_1, false);
 motor coilMotor = motor(PORT1, ratio18_1, false);
 // VEXcode generated functions
 // define variable for remote controller enable/disable
@@ -31,7 +29,8 @@ bool RemoteControlCodeEnabled = true;
 // define variables used for controlling motors based on controller inputs
 bool DrivetrainLNeedsToBeStopped_Controller1 = true;
 bool DrivetrainRNeedsToBeStopped_Controller1 = true;
-
+bool Controller1LeftShoulderControlMotorsStopped = true;
+bool Controller1RightShoulderControlMotorsStopped = true;
 // define a task that will handle monitoring inputs from Controller1
 int rc_auto_loop_function_Controller1() {
   // process the controller input every 20 milliseconds
@@ -80,6 +79,19 @@ int rc_auto_loop_function_Controller1() {
       if (DrivetrainRNeedsToBeStopped_Controller1) {
         RightDriveSmart.setVelocity(drivetrainRightSideSpeed, percent);
         RightDriveSmart.spin(forward);
+      }
+
+
+      if (Controller1.ButtonR1.pressing()) {
+        intake.spin(forward);
+        Controller1RightShoulderControlMotorsStopped = false;
+      } else if (Controller1.ButtonR2.pressing()) {
+        intake.spin(reverse);
+        Controller1RightShoulderControlMotorsStopped = false;
+      } else if (!Controller1RightShoulderControlMotorsStopped) {
+        intake.stop();
+        // set the toggle so that we don't constantly tell the motor to stop when the buttons are released
+        Controller1RightShoulderControlMotorsStopped = true;
       }
     }
     // wait before repeating the process
