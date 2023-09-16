@@ -6,8 +6,11 @@ extern brain Brain;
 extern drivetrain Drivetrain;
 extern controller Controller1;
 extern motor leftMotorA;
+extern motor rightMotorA; 
 extern motor intake;
 extern motor coilMotor;
+extern motor_group LeftDriveSmart;
+extern motor_group RightDriveSmart;
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
  * 
