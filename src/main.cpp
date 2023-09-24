@@ -51,89 +51,77 @@ void pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+//.585
+//.0005
+//.005
 
-bool enablePID = true;
+bool pid = true;
+double desiredVal = 50;
 
-double kP = 0.585;
-double kI = 0.0005;
-double kD = 0.005;
+double Kpc = .4;
+double pi = 3.14159265;
+double traveledDist;
+int prevErr;
+double error;
+double prop;
+double Kdv;
+double Kdc = 0.05;
+double deriv;
+double pwr;
+bool first;
 
+//Kpc - .5 or .4 or .3
+//Kdc - 0.05
 
-double TkP = 0.0;
-double TkI = 0.0;
-double TkD = 0.0;
-
-//Autonomous Settings
-int desiredValue = 2;
-int desiredTurnValue = 0;
-
-
-int error; //SensorVal - Desired Value : Position
-int prevErr = 0; // Position 20 milliseconds ago
-int deriv; // error - prevErr : speed
-int totalErr = 0; // total Error = total Error + error
-
-int turnError; //SensorVal - Desired Value : Position
-int turnPrevErr = 0; // Position 20 milliseconds ago
-int turnDeriv; // error - prevErr : speed
-int turnTotalErr = 0; // total Error = total Error + error
-
-
-int drivePID(){
-  
-  while(enablePID){
-    //get pos of each side
-    int leftMotorPos = LeftDriveSmart.position(degrees); 
-    int rightMotorPos = RightDriveSmart.position(degrees);
-    ////////////////////////////////////////////////////////
-    //Lateral movement pid
-    ///////////////////////////////////////////////////////
-    //get avg pos
-    int avgPos = (leftMotorPos + rightMotorPos) / 2;  
-    
-    //Potential
-    error = avgPos - desiredValue;
-    
-    //Derivative
-    deriv = error - prevErr;
-
-    //integral
-    totalErr += error;
-
-    double lateralMotorPower = error * kP + deriv * kD + totalErr * kI;
-
-    
-    
-    ////////////////////////////////////////////////////////
-    // turning pid
-    ///////////////////////////////////////////////////////
-        //get avg pos
-    int turnDiff = leftMotorPos - rightMotorPos;  
-    
-    //Potential
-    turnError = avgPos - desiredValue;
-    
-    //Derivative
-    turnDeriv = error - prevErr;
-
-    //integral
-    turnTotalErr += turnError;
-
-    double turnMotorPower = error * TkP + deriv * TkD + totalErr * TkI;
-
-    
-    
-    LeftDriveSmart.spin(fwd, lateralMotorPower + turnMotorPower, volt);
-    RightDriveSmart.spin(fwd, lateralMotorPower + turnMotorPower, volt);
-
-    //code
-    prevErr = error;
-    turnPrevErr = turnError;
+int drivepid(){
+  leftMotorA.setPosition(0, degrees);
+  rightMotorA.setPosition(0, degrees);
+  traveledDist = 0;
+  first = true;
+  while(pid){
+    if(first){
+      error = desiredVal - traveledDist;
+      prop = error * Kpc;
+      prevErr = error;
+      if(prop > 11){
+        prop = 11;
+      }
+      RightDriveSmart.spin(fwd, prop, volt);
+      LeftDriveSmart.spin(fwd, prop, volt);
+      first = false;
+    }
+    else {
+      double revolutions = leftMotorA.position(rev);  
+      Controller1.Screen.setCursor(0,0);
+      Controller1.Screen.print(revolutions);
+      traveledDist = ((4*pi) * revolutions);
+      if(traveledDist >= desiredVal){
+        LeftDriveSmart.spin(fwd, 0, volt);
+        RightDriveSmart.spin(fwd, 0, volt);
+      } else {
+        error = desiredVal - traveledDist;
+        prop = error * Kpc;
+        Kdv = (error - prevErr) / 20;
+        deriv = Kdv * Kdc;
+        pwr = prop + deriv;
+        if(pwr > 11){
+          pwr = 11;
+        }
+        prevErr = error;
+        Controller1.Screen.setCursor(0,1);
+        Controller1.Screen.print(" : Pwr: ");
+        Controller1.Screen.print(pwr);
+        LeftDriveSmart.spin(fwd, pwr, volt);
+        RightDriveSmart.spin(fwd, pwr, volt);
+      }
+    }
+    //get the position of both motors
     vex::task::sleep(20);
   }
   
   return 1;
 }
+
 
 
 bool coiling = false;
@@ -143,7 +131,7 @@ bool single = false;
 
 
 void autonomous(void) {
-  drivePID();
+  drivepid();
 }
 
 
@@ -180,7 +168,6 @@ void usercontrol(void) {
     // This is the main execution loop for the user control program.
     // Each time through the loop your program should update motor + servo
     // values based on feedback from the joysticks.
-    enablePID = false;
     auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
