@@ -56,26 +56,26 @@ void pre_auton(void) {
 //.005
 
 bool pid = true;
-double desiredVal = 50;
-
+double desiredVal = 10;
 double Kpc = .4;
+double Kdc = 0.1;
 double pi = 3.14159265;
 double traveledDist;
 int prevErr;
 double error;
 double prop;
 double Kdv;
-double Kdc = 0.05;
 double deriv;
 double pwr;
 bool first;
 
+double waitTime = 0.5;
 //Kpc - .5 or .4 or .3
 //Kdc - 0.05
 
 int drivepid(){
-  leftMotorA.setPosition(0, degrees);
-  rightMotorA.setPosition(0, degrees);
+  leftMotorA.setPosition(0, rev);
+  rightMotorA.setPosition(0, rev);
   traveledDist = 0;
   first = true;
   while(pid){
@@ -101,7 +101,7 @@ int drivepid(){
       } else {
         error = desiredVal - traveledDist;
         prop = error * Kpc;
-        Kdv = (error - prevErr) / 20;
+        Kdv = (error - prevErr) / waitTime;
         deriv = Kdv * Kdc;
         pwr = prop + deriv;
         if(pwr > 11){
@@ -116,12 +116,67 @@ int drivepid(){
       }
     }
     //get the position of both motors
-    vex::task::sleep(20);
+    wait(waitTime, msec);
   }
-  
   return 1;
 }
 
+double desiredDegrees = 90;
+double degreesTraveled;
+double TErr;
+double TKpc = 0.1;
+double TKdc = 0.05;
+double TKdv;
+bool firstTurn = true;
+double TProp;
+double TprevErr;
+double TDeriv;
+double TPwr;
+bool Tpid = true;
+double Tdps;
+int turnpid(){
+  leftMotorA.setPosition(0, rev);
+  rightMotorA.setPosition(0, rev);
+  degreesTraveled = 0;
+  while(Tpid){
+    if(firstTurn){
+      TErr = desiredDegrees - degreesTraveled;
+      TProp = TErr * TKpc;
+      TprevErr = TErr;
+      if(TProp > 11){
+        TProp = 11;
+      }
+      LeftDriveSmart.spin(fwd, TProp * .5, volt);
+      RightDriveSmart.spin(reverse, TProp * .5, volt);
+      firstTurn = false;
+    }
+    else{
+      while(degreesTraveled < desiredDegrees){
+        double revolutions = leftMotorA.position(rev);  
+        degreesTraveled = (revolutions * 360) / 2;
+        Controller1.Screen.setCursor(0,0);
+        Controller1.Screen.print(degreesTraveled);
+        if(degreesTraveled >= desiredDegrees){
+          LeftDriveSmart.stop();
+          RightDriveSmart.stop();
+        } else {
+          TErr = desiredDegrees - degreesTraveled;
+          TProp = TKpc * TErr;
+          TKdv = (TErr - TprevErr) / waitTime;
+          TDeriv = TKdv * TKdc;
+          TPwr = TDeriv + TProp;
+          if(TPwr > 11){
+            TPwr = 11;
+          }
+          LeftDriveSmart.spin(fwd, TPwr * 0.5, volt);
+          RightDriveSmart.spin(reverse, TPwr * 0.5, volt);
+        }
+      }
+    }
+  }
+  wait(waitTime, msec);
+  return 1;
+}
 
 
 bool coiling = false;
@@ -149,9 +204,6 @@ void shoot(){
 
 bool intaking = false;
 bool revIntaking = false;
-void intakeN(){intaking = true; revIntaking = false;}
-
-void intakeR(){revIntaking = true; intaking = false;}
 
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
@@ -215,29 +267,6 @@ void usercontrol(void) {
   while (1) {
     if(counter % 50 == 0){
       addr = printToScreen(addr);
-    }
-    //coil controls
-    void (*l1ptr)() = &coil;
-    void (*l2ptr)() = &shoot;
-
-    Controller1.ButtonL1.pressed(l1ptr);
-    Controller1.ButtonL2.pressed(l2ptr);
-
-    intaking = false;
-    revIntaking = false;
-    void (*r1ptr)() = intakeN;
-    void (*r2ptr)() = intakeR;
-    Controller1.ButtonR1.pressed(intakeN);
-    Controller1.ButtonR2.pressed(intakeR);
-    if (intaking || Controller1.ButtonR1.pressing()){
-      intake.setVelocity(100, pct);
-      
-    } else if(revIntaking || Controller1.ButtonR2.pressing()){
-      intake.setVelocity(-100,pct);
-    }else{
-      intake.stop(brake);
-      intaking = false;
-      revIntaking = false;
     }
 
     
