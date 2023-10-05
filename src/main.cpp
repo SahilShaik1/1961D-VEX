@@ -56,7 +56,7 @@ void pre_auton(void) {
 //.005
 
 bool pid = true;
-double desiredVal = 10;
+double desiredVal = 40;
 double Kpc = .4;
 double Kdc = 0.1;
 double pi = 3.14159265;
@@ -69,7 +69,7 @@ double deriv;
 double pwr;
 bool first;
 
-double waitTime = 0.5;
+double waitTime = 10;
 //Kpc - .5 or .4 or .3
 //Kdc - 0.05
 
@@ -86,19 +86,18 @@ int drivepid(){
       if(prop > 11){
         prop = 11;
       }
-      RightDriveSmart.spin(fwd, prop, volt);
-      LeftDriveSmart.spin(fwd, prop, volt);
+      RightDriveSmart.spin(reverse, prop, volt);
+      LeftDriveSmart.spin(reverse, prop, volt);
       first = false;
     }
     else {
       double revolutions = leftMotorA.position(rev);  
-      Controller1.Screen.setCursor(0,0);
-      Controller1.Screen.print(revolutions);
+      if(revolutions < 0){
+        revolutions *= -1;
+      }
       traveledDist = ((4*pi) * revolutions);
-      if(traveledDist >= desiredVal){
-        LeftDriveSmart.spin(fwd, 0, volt);
-        RightDriveSmart.spin(fwd, 0, volt);
-      } else {
+        Controller1.Screen.setCursor(0,0);
+        Controller1.Screen.print(traveledDist);
         error = desiredVal - traveledDist;
         prop = error * Kpc;
         Kdv = (error - prevErr) / waitTime;
@@ -108,12 +107,9 @@ int drivepid(){
           pwr = 11;
         }
         prevErr = error;
-        Controller1.Screen.setCursor(0,1);
-        Controller1.Screen.print(" : Pwr: ");
-        Controller1.Screen.print(pwr);
-        LeftDriveSmart.spin(fwd, pwr, volt);
-        RightDriveSmart.spin(fwd, pwr, volt);
-      }
+        LeftDriveSmart.spin(reverse, pwr, volt);
+        RightDriveSmart.spin(reverse, pwr, volt);
+      
     }
     //get the position of both motors
     wait(waitTime, msec);
@@ -122,7 +118,7 @@ int drivepid(){
 }
 
 double desiredDegrees = 90;
-double degreesTraveled;
+double degreesTraveled = 0;
 double TErr;
 double TKpc = 0.1;
 double TKdc = 0.05;
@@ -135,30 +131,37 @@ double TPwr;
 bool Tpid = true;
 double Tdps;
 int turnpid(){
-  leftMotorA.setPosition(0, rev);
-  rightMotorA.setPosition(0, rev);
-  degreesTraveled = 0;
+  Controller1.Screen.clearScreen();
+  imu1.startCalibration();
+  while(imu1.isCalibrating()){
+    Controller1.Screen.setCursor(0, 0);
+    Controller1.Screen.print("Calibrating");
+    wait(20, msec);
+  }
+  imu1.resetRotation();
+  imu1.setRotation(0, rotationUnits::deg);
   while(Tpid){
     if(firstTurn){
+      degreesTraveled = imu1.heading();
+      Controller1.Screen.print(degreesTraveled);
       TErr = desiredDegrees - degreesTraveled;
       TProp = TErr * TKpc;
       TprevErr = TErr;
       if(TProp > 11){
         TProp = 11;
       }
-      LeftDriveSmart.spin(fwd, TProp * .5, volt);
-      RightDriveSmart.spin(reverse, TProp * .5, volt);
+      LeftDriveSmart.spin(fwd, TProp, volt);
+      RightDriveSmart.spin(reverse, TProp, volt);
       firstTurn = false;
     }
     else{
       while(degreesTraveled < desiredDegrees){
-        double revolutions = leftMotorA.position(rev);  
-        degreesTraveled = (revolutions * 360) / 2;
+        degreesTraveled = imu1.heading();
         Controller1.Screen.setCursor(0,0);
         Controller1.Screen.print(degreesTraveled);
         if(degreesTraveled >= desiredDegrees){
-          LeftDriveSmart.stop();
-          RightDriveSmart.stop();
+          LeftDriveSmart.stop(hold);
+          RightDriveSmart.stop(hold);
         } else {
           TErr = desiredDegrees - degreesTraveled;
           TProp = TKpc * TErr;
@@ -168,8 +171,8 @@ int turnpid(){
           if(TPwr > 11){
             TPwr = 11;
           }
-          LeftDriveSmart.spin(fwd, TPwr * 0.5, volt);
-          RightDriveSmart.spin(reverse, TPwr * 0.5, volt);
+          LeftDriveSmart.spin(fwd, TPwr, volt);
+          RightDriveSmart.spin(reverse, TPwr, volt);
         }
       }
     }
@@ -186,7 +189,9 @@ bool single = false;
 
 
 void autonomous(void) {
-  drivepid();
+  while(true){
+    cata.spin(fwd, 12, volt);
+  }
 }
 
 
@@ -220,6 +225,7 @@ void usercontrol(void) {
     // This is the main execution loop for the user control program.
     // Each time through the loop your program should update motor + servo
     // values based on feedback from the joysticks.
+    /*
     auto printToScreen = [&](void* mem, bool end = false) -> double*{
     if(end){
       //Free memory and finish
@@ -258,17 +264,27 @@ void usercontrol(void) {
   };
 
   double* addr = printToScreen(NULL);
+  */
+  
   int counter = 0;
 
 
-
-
+  Controller1.Screen.clearScreen();
   //normal run
   while (1) {
-    if(counter % 50 == 0){
-      addr = printToScreen(addr);
-    }
+    double deg = imu1.heading();
+    double ax = imu1.acceleration(axisType::xaxis);
+    Controller1.Screen.setCursor(0, 0);
+    Controller1.Screen.print(deg);
+    
 
+    if(counter % 50 == 0){
+//      addr = printToScreen(addr);
+    }
+    
+    
+    
+    
     
 
     // ........................................................................
@@ -287,11 +303,13 @@ void usercontrol(void) {
 //
 int main() {
   // Set up callbacks for autonomous and driver control periods.
+  // Run the pre-autonomous function.
+  pre_auton();
+  
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
 
-  // Run the pre-autonomous function.
-  pre_auton();
+
 
   // Prevent main from exiting with an infinite loop.
   while (true) {
