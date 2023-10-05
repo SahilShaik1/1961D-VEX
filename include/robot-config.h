@@ -8,9 +8,10 @@ extern controller Controller1;
 extern motor leftMotorA;
 extern motor rightMotorA; 
 extern motor intake;
-extern motor coilMotor;
+extern motor cata;
 extern motor_group LeftDriveSmart;
 extern motor_group RightDriveSmart;
+extern inertial imu1;
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
  * 
