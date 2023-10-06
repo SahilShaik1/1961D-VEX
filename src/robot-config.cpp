@@ -38,6 +38,13 @@ bool clicked = false;
 bool stopped = false;
 bool shot = false;
 int c = 0;
+
+void pneu(){
+  shot = !shot;
+}
+
+
+
 // define a task that will handle monitoring inputs from Controller1
 int rc_auto_loop_function_Controller1() {
   // process the controller input every 20 milliseconds
@@ -112,16 +119,14 @@ int rc_auto_loop_function_Controller1() {
         cata.spin(fwd, 12, volt);
         stopped = false;
       }
-      
-      if(Controller1.ButtonB.pressing()){
-        shot = !shot;
-        if(shot){
-          wing.set(true);
-        } else {
-          wing.set(false);
-        }
-      }
 
+      Controller1.ButtonB.pressed(pneu);
+
+      if(shot){
+        wing.set(true);
+      } else {
+        wing.set(false);
+      }
 
       if (Controller1.ButtonR1.pressing()) {
         intake.spin(forward, 12, volt);
