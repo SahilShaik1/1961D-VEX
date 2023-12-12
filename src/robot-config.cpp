@@ -9,22 +9,24 @@ brain Brain;
 triport tp(PORT22);
 limit limitSwitch = limit(tp.A);
 // VEXcode device constructors
-motor leftMotorA = motor(PORT6, ratio18_1, false);
-motor leftMotorB = motor(PORT8, ratio18_1, false);
-motor leftMotorC = motor(PORT7, ratio18_1, true);
+motor leftMotorA = motor(PORT18, ratio6_1, true);
+motor leftMotorB = motor(PORT19, ratio6_1, true);
+motor leftMotorC = motor(PORT20, ratio6_1, true);
 motor_group LeftDriveSmart = motor_group(leftMotorA, leftMotorB, leftMotorC);
-motor rightMotorA = motor(PORT2, ratio18_1, true);
-motor rightMotorB = motor(PORT3, ratio18_1, true);
-motor rightMotorC = motor(PORT20, ratio18_1, false);
+motor rightMotorA = motor(PORT13, ratio6_1, false);
+motor rightMotorB = motor(PORT12, ratio6_1, false);
+motor rightMotorC = motor(PORT11, ratio6_1, false);
+motor intake = motor(PORT1, ratio18_1, false);
 motor_group RightDriveSmart = motor_group(rightMotorA, rightMotorB, rightMotorC);
-motor intake = motor(PORT10, ratio18_1, false); 
 drivetrain Drivetrain = drivetrain(LeftDriveSmart, RightDriveSmart, 319.19, 295, 40, mm, 1);
 controller Controller1 = controller(primary);
-motor cata = motor(PORT5, ratio18_1, false);
-digital_out wing = digital_out(Brain.ThreeWirePort.A);
-inertial imu1 (PORT1);
+//motor lcata = motor(PORT11, ratio18_1, true);
+//motor rcata = motor(PORT12, ratio18_1, false);
+digital_out lwing = digital_out(Brain.ThreeWirePort.A);
+digital_out rwing = digital_out(Brain.ThreeWirePort.B);
+inertial imu1 (PORT10, turnType::left);
 
-bumper bump(Brain.ThreeWirePort.B);
+
 // VEXcode generated functions
 // define variable for remote controller enable/disable
 bool RemoteControlCodeEnabled = true;
@@ -34,22 +36,22 @@ bool DrivetrainRNeedsToBeStopped_Controller1 = true;
 bool Controller1LeftShoulderControlMotorsStopped = true;
 bool Controller1RightShoulderControlMotorsStopped = true;
 bool pushed = false;
-bool clicked = false;
+bool started = false;
 bool stopped = false;
-bool shot = false;
+bool shotl = false;
+bool shotr = false;
+bool forever = true;
+bool buttonL1State = false;
+bool buttonR1State = false;
 int c = 0;
-
-void pneu(){
-  shot = !shot;
-}
-
-
+int z = 0;
 
 // define a task that will handle monitoring inputs from Controller1
 int rc_auto_loop_function_Controller1() {
   // process the controller input every 20 milliseconds
   // update the motors based on the input values
-  cata.setPosition(0, rev);
+//  lcata.setPosition(0, rev);
+//  rcata.setPosition(0, rev);
   while(true) {
     if(RemoteControlCodeEnabled) {
       // calculate the drivetrain motor velocities from the controller joystick axies
@@ -96,49 +98,56 @@ int rc_auto_loop_function_Controller1() {
         RightDriveSmart.spin(forward);
       }
 
+      if(Controller1.ButtonX.pressing() && z == 0){
+        forever = !forever;
+        started = true;
+      }
 
-      if(!bump.pressing()){
-        cata.spin(fwd, 12, volt);
-        pushed = false;
-        stopped = false;
-      } else {
-        if(Controller1.ButtonA.pressing()){
-          clicked = true;
-        } else {
-          cata.stop(hold);
-          stopped = true;
+      if(started && z < 5){
+        z++;
+      }
+      if(started && z==5){
+        z = 0;
+        started = false;
+      }
+      if(!Controller1.ButtonL1.pressing() && buttonL1State)
+        {
+            buttonL1State = false;
+            shotl = !shotl;
         }
+      if(Controller1.ButtonL1.pressing()) {
+        buttonL1State = true;
       }
-      if(!pushed && !stopped && clicked){
-        pushed = false;
-        stopped = false;
-        clicked = false;
-      }
-
-      if(clicked){
-        cata.spin(fwd, 12, volt);
-        stopped = false;
-      }
-
-      Controller1.ButtonB.pressed(pneu);
-
-      if(shot){
-        wing.set(true);
+      if(shotl){
+        lwing.set(true);
       } else {
-        wing.set(false);
+        lwing.set(false);
       }
 
-      if (Controller1.ButtonR1.pressing()) {
-        intake.spin(forward, 12, volt);
-        Controller1RightShoulderControlMotorsStopped = false;
-      } else if (Controller1.ButtonR2.pressing()) {
-        intake.spin(reverse, 12, volt);
-        Controller1RightShoulderControlMotorsStopped = false;
-      } else if (!Controller1RightShoulderControlMotorsStopped) {
-        intake.stop();
-        // set the toggle so that we don't constantly tell the motor to stop when the buttons are released
-        Controller1RightShoulderControlMotorsStopped = true;
+      if(!Controller1.ButtonR1.pressing() && buttonR1State)
+        {
+            buttonR1State = false;
+            shotr = !shotr;
+        }
+      if(Controller1.ButtonR1.pressing()) {
+        buttonR1State = true;
       }
+      if(shotr){
+        rwing.set(true);
+      } else {
+        rwing.set(false);
+      }
+      if(Controller1.ButtonR1.pressing()){
+        intake.spin(fwd, 12, volt);
+        printf("spin");
+      } 
+      if(Controller1.ButtonR2.pressing()){
+        intake.spin(reverse, 12, volt);
+      }
+      if(!Controller1.ButtonR1.pressing() && !Controller1.ButtonR2.pressing()){
+        intake.stop();
+      }
+    
     }
     // wait before repeating the process
     wait(20, msec);
