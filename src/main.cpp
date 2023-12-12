@@ -33,10 +33,34 @@ competition Competition;
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
+
+void calibration(inertial& inert){
+  inert.startCalibration();
+  inert.calibrate();
+  Controller1.Screen.clearScreen();
+  Controller1.Screen.setCursor(0, 0);
+  while(inert.isCalibrating()){
+    Controller1.Screen.clearScreen();
+    Controller1.Screen.print("Calibrating");
+    Controller1.Screen.setCursor(0, 0);
+    wait(20, msec);
+  }
+  Controller1.Screen.clearScreen();
+  inert.setHeading(0, deg);
+}
+
+
+
+
+
+
+
+
+
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
-
+  calibration(imu1);
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
@@ -56,7 +80,7 @@ void pre_auton(void) {
 //.005
 
 bool pid = true;
-double desiredVal = 40;
+double DV = 40;
 double Kpc = .4;
 double Kdc = 0.1;
 double pi = 3.14159265;
@@ -68,117 +92,143 @@ double Kdv;
 double deriv;
 double pwr;
 bool first;
-
-double waitTime = 10;
+double waitTime = 20;
 //Kpc - .5 or .4 or .3
 //Kdc - 0.05
 
-int drivepid(){
+int drivepid(double desiredDist){
+  desiredDist *= 2;
+  leftMotorA.resetPosition();
+  rightMotorA.resetPosition();
   leftMotorA.setPosition(0, rev);
   rightMotorA.setPosition(0, rev);
-  traveledDist = 0;
+
   first = true;
-  while(pid){
-    if(first){
-      error = desiredVal - traveledDist;
-      prop = error * Kpc;
-      prevErr = error;
-      if(prop > 11){
-        prop = 11;
-      }
-      RightDriveSmart.spin(reverse, prop, volt);
-      LeftDriveSmart.spin(reverse, prop, volt);
-      first = false;
-    }
-    else {
-      double revolutions = leftMotorA.position(rev);  
-      if(revolutions < 0){
-        revolutions *= -1;
-      }
-      traveledDist = ((4*pi) * revolutions);
-        Controller1.Screen.setCursor(0,0);
-        Controller1.Screen.print(traveledDist);
-        error = desiredVal - traveledDist;
+    while(pid){
+      if(first){
+        error = desiredDist - traveledDist;
         prop = error * Kpc;
-        Kdv = (error - prevErr) / waitTime;
-        deriv = Kdv * Kdc;
-        pwr = prop + deriv;
-        if(pwr > 11){
-          pwr = 11;
-        }
         prevErr = error;
-        LeftDriveSmart.spin(reverse, pwr, volt);
-        RightDriveSmart.spin(reverse, pwr, volt);
-      
+        if(prop > 11){
+          prop = 11;
+        }
+        RightDriveSmart.spin(fwd, prop, volt);
+        LeftDriveSmart.spin(fwd, prop, volt);
+        first = false;
+      }
+      else {
+        double revolutions = leftMotorA.position(rev);
+        if(revolutions < 0){
+          revolutions *= -1;
+        }
+        Controller1.Screen.setCursor(0, 0);
+        Controller1.Screen.print(revolutions);
+  
+        traveledDist = ((4*pi) * revolutions);
+        if(traveledDist >= desiredDist || (prevErr < 0.9 && prevErr > -0.9) ){
+          LeftDriveSmart.stop(brake);
+          RightDriveSmart.stop(brake);
+          break;
+        } else {
+          Controller1.Screen.setCursor(0,0);
+          Controller1.Screen.print(traveledDist);
+          error = desiredDist - traveledDist;
+          prop = error * Kpc;
+          Kdv = (error - prevErr) / waitTime;
+          deriv = Kdv * Kdc;
+          pwr = prop + deriv;
+          pwr *= 2.6;
+          if(pwr > 12){
+            pwr = 12;
+          }
+          prevErr = error;
+          LeftDriveSmart.spin(fwd, pwr, volt);
+          RightDriveSmart.spin(fwd, pwr, volt);
+        }
+      //get the position of both motors
+      wait(20, msec);
     }
-    //get the position of both motors
     wait(waitTime, msec);
   }
   return 1;
 }
 
-double desiredDegrees = 90;
-double degreesTraveled = 0;
 double TErr;
-double TKpc = 0.1;
-double TKdc = 0.05;
+double TKpc = 0.2; // 0.1
+double TKdc = 0.015; // 0.05
 double TKdv;
 bool firstTurn = true;
 double TProp;
 double TprevErr;
 double TDeriv;
 double TPwr;
+double PDT;
 bool Tpid = true;
+bool ended = false;
 double Tdps;
-int turnpid(){
-  Controller1.Screen.clearScreen();
-  imu1.startCalibration();
-  while(imu1.isCalibrating()){
-    Controller1.Screen.setCursor(0, 0);
-    Controller1.Screen.print("Calibrating");
-    wait(20, msec);
-  }
-  imu1.resetRotation();
-  imu1.setRotation(0, rotationUnits::deg);
+void turnpid(double desiredDegrees, bool rev){
+  imu1.setRotation(0, deg);
+  double degreesTraveled = 0;
   while(Tpid){
+    Controller1.Screen.clearScreen();
+    Controller1.Screen.setCursor(0, 0);
     if(firstTurn){
-      degreesTraveled = imu1.heading();
-      Controller1.Screen.print(degreesTraveled);
+      degreesTraveled = imu1.rotation();
+      if(degreesTraveled < 0){
+        degreesTraveled*=-1;
+      }
       TErr = desiredDegrees - degreesTraveled;
       TProp = TErr * TKpc;
       TprevErr = TErr;
       if(TProp > 11){
         TProp = 11;
       }
-      LeftDriveSmart.spin(fwd, TProp, volt);
-      RightDriveSmart.spin(reverse, TProp, volt);
+      if(!rev){
+        LeftDriveSmart.spin(fwd, TProp, volt);
+        RightDriveSmart.spin(reverse, TProp, volt);
+      } else {
+        LeftDriveSmart.spin(reverse, TProp, volt);
+        RightDriveSmart.spin(fwd, TProp, volt);
+      }
       firstTurn = false;
     }
     else{
-      while(degreesTraveled < desiredDegrees){
-        degreesTraveled = imu1.heading();
-        Controller1.Screen.setCursor(0,0);
-        Controller1.Screen.print(degreesTraveled);
-        if(degreesTraveled >= desiredDegrees){
-          LeftDriveSmart.stop(hold);
-          RightDriveSmart.stop(hold);
+        Controller1.Screen.clearScreen();
+        degreesTraveled = imu1.rotation();
+        if(degreesTraveled < 0){
+          degreesTraveled *= -1;
+        }
+        if(degreesTraveled >= desiredDegrees || (TprevErr < 0.9 && TprevErr > -0.9)){
+          LeftDriveSmart.stop(brake);
+          RightDriveSmart.stop(brake);
+          break;
         } else {
           TErr = desiredDegrees - degreesTraveled;
           TProp = TKpc * TErr;
           TKdv = (TErr - TprevErr) / waitTime;
           TDeriv = TKdv * TKdc;
           TPwr = TDeriv + TProp;
+          TPwr *= .35; // 0.7
+          if(round(degreesTraveled) == round(PDT)){
+            LeftDriveSmart.stop(brake);
+            RightDriveSmart.stop(brake);
+            break;
+          }
           if(TPwr > 11){
             TPwr = 11;
           }
-          LeftDriveSmart.spin(fwd, TPwr, volt);
-          RightDriveSmart.spin(reverse, TPwr, volt);
-        }
+          PDT = degreesTraveled;
+          if(!rev){
+            LeftDriveSmart.spin(fwd, TPwr, volt);
+            RightDriveSmart.spin(reverse, TPwr, volt);
+          } else {
+            LeftDriveSmart.spin(reverse, TPwr, volt);
+            RightDriveSmart.spin(fwd, TPwr, volt);
+          }
       }
+      wait(20, msec);
     }
   }
-  wait(waitTime, msec);
-  return 1;
 }
 
 
@@ -186,12 +236,11 @@ bool coiling = false;
 bool single = false;
 //Starting autonomous
 
-
+int commands[] = {20, 180, 20};
 
 void autonomous(void) {
-  while(true){
-    cata.spin(fwd, 12, volt);
-  }
+  Controller1.Screen.clearScreen();
+  turnpid(180, false);
 }
 
 
@@ -220,67 +269,17 @@ bool revIntaking = false;
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+
+
 void usercontrol(void) {
-  // User control code here, inside the loop
-    // This is the main execution loop for the user control program.
-    // Each time through the loop your program should update motor + servo
-    // values based on feedback from the joysticks.
-    /*
-    auto printToScreen = [&](void* mem, bool end = false) -> double*{
-    if(end){
-      //Free memory and finish
-      mem = NULL;
-      free(mem);
-      return nullptr; 
-    }
-    //Prints battery
-    Controller1.Screen.clearScreen();
-    Controller1.Screen.setCursor(0, 0);
-    Controller1.Screen.print("B: ");
-    int batteryPct = Brain.Battery.capacity(percentUnits::pct);
-    Controller1.Screen.print(batteryPct);
-    Controller1.Screen.print("%");
-    double temp = leftMotorA.temperature(temperatureUnits::celsius);
-    Controller1.Screen.print(" T: ");
-    Controller1.Screen.print(temp);
-    Controller1.Screen.print("C");
-    //stores in array
-
-  
-
-    double res[2] = {(double)batteryPct, temp};
-    if(mem == NULL){
-      //First time run
-      double *addr = (double*)malloc(sizeof(res));
-      //set the memory to the array
-      addr = res;
-      return addr;
-    } else {
-      //use old memory
-      double *addr = (double*)mem;
-      addr = res;
-      return addr;
-    }
-  };
-
-  double* addr = printToScreen(NULL);
-  */
-  
-  int counter = 0;
-
+  calibration(imu1);
 
   Controller1.Screen.clearScreen();
   //normal run
   while (1) {
-    double deg = imu1.heading();
-    double ax = imu1.acceleration(axisType::xaxis);
+    double deg = imu1.rotation();
     Controller1.Screen.setCursor(0, 0);
     Controller1.Screen.print(deg);
-    
-
-    if(counter % 50 == 0){
-//      addr = printToScreen(addr);
-    }
     
     
     
